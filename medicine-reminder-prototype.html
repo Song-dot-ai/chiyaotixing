@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>吃药提醒 · 交互原型（假数据）</title>
+<style>
+  :root {
+    --ink:#22283a; --muted:#7a828f; --line:#e6e9ef; --bg:#f4f6f9; --card:#fff;
+    --blue:#2f6fed; --blue-soft:#eaf1ff; --green:#1e9e5a; --green-soft:#e6f6ee;
+    --red:#d4483b; --red-soft:#fdeceb; --gray-soft:#eef0f4; --radius:14px;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif; background:var(--bg); color:var(--ink); font-size:15px; }
+  .phone { max-width:430px; margin:0 auto; min-height:100vh; background:var(--bg); display:flex; flex-direction:column; box-shadow:0 0 24px rgba(0,0,0,.08); }
+
+  /* 顶部导航 */
+  .topbar { background:var(--card); border-bottom:1px solid var(--line); padding:14px 18px 0; position:sticky; top:0; z-index:20; }
+  .topbar h1 { font-size:17px; margin-bottom:10px; }
+  .tabs { display:flex; gap:4px; }
+  .tab { flex:1; text-align:center; padding:9px 0 11px; font-size:13px; color:var(--muted); text-decoration:none; border-bottom:2.5px solid transparent; border-radius:8px 8px 0 0; }
+  .tab.active { color:var(--blue); border-bottom-color:var(--blue); background:var(--blue-soft); font-weight:600; }
+
+  main { flex:1; padding:16px; }
+  .view { display:none; }
+  .view.active { display:block; animation:fade .18s ease; }
+  @keyframes fade { from{opacity:0; transform:translateY(4px);} to{opacity:1;} }
+
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px 16px; margin-bottom:12px; }
+  .row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .time { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .meds { color:var(--muted); font-size:13px; margin-top:4px; }
+  .pill { display:inline-block; background:var(--blue-soft); color:var(--blue); font-size:12px; padding:2px 9px; border-radius:999px; margin:2px 4px 0 0; }
+
+  .badge { font-size:12px; font-weight:600; padding:3px 10px; border-radius:999px; white-space:nowrap; }
+  .badge.done { background:var(--green-soft); color:var(--green); }
+  .badge.miss { background:var(--red-soft); color:var(--red); }
+  .badge.none { background:var(--gray-soft); color:var(--muted); }
+
+  .btn { border:none; border-radius:10px; padding:9px 16px; font-size:14px; cursor:pointer; font-weight:600; }
+  .btn.primary { background:var(--blue); color:#fff; }
+  .btn.ghost { background:var(--card); color:var(--blue); border:1px solid var(--blue); }
+  .btn.sm { padding:6px 12px; font-size:13px; }
+  .btn.danger-text { background:none; color:var(--red); border:none; font-size:13px; cursor:pointer; }
+  .actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
+
+  .section-title { font-size:13px; color:var(--muted); margin:18px 0 8px; display:flex; justify-content:space-between; align-items:center; }
+  .empty { text-align:center; color:var(--muted); font-size:13px; padding:26px 0; }
+
+  .banner { background:#fff8e6; border:1px solid #f2dfae; color:#8a6d1a; font-size:13px; border-radius:var(--radius); padding:10px 14px; margin-bottom:12px; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+
+  /* 模拟系统通知（原型内演示 Notification 外观） */
+  .notif { position:fixed; top:14px; left:50%; transform:translate(-50%,-130%); width:min(380px, calc(100% - 28px)); background:#fff; border:1px solid var(--line); border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,.18); padding:12px 14px; z-index:99; transition:transform .3s ease; }
+  .notif.show { transform:translate(-50%,0); }
+  .notif .app { font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .notif .app .ico { width:16px; height:16px; border-radius:4px; background:var(--blue); display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:700; }
+  .notif b { font-size:14px; }
+  .notif p { font-size:13px; color:var(--muted); margin-top:2px; }
+  .notif .close { position:absolute; top:8px; right:10px; border:none; background:none; color:var(--muted); font-size:16px; cursor:pointer; }
+
+  /* 弹层表单 */
+  .overlay { position:fixed; inset:0; background:rgba(20,25,35,.45); display:none; align-items:flex-end; justify-content:center; z-index:60; }
+  .overlay.show { display:flex; }
+  .sheet { background:var(--card); width:100%; max-width:430px; border-radius:18px 18px 0 0; padding:20px 18px 26px; animation:up .22s ease; }
+  @keyframes up { from{transform:translateY(40px); opacity:.6;} to{transform:none; opacity:1;} }
+  .sheet h3 { font-size:16px; margin-bottom:14px; }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:13px; color:var(--muted); margin-bottom:5px; }
+  .field input[type=text], .field input[type=time] { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; font-size:14px; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip { border:1.5px solid var(--line); border-radius:999px; padding:6px 14px; font-size:13px; cursor:pointer; background:#fff; color:var(--ink); }
+  .chip.on { border-color:var(--blue); background:var(--blue-soft); color:var(--blue); font-weight:600; }
+  .sheet .foot { display:flex; gap:10px; margin-top:16px; }
+  .sheet .foot .btn { flex:1; }
+
+  .proto-note { font-size:12px; color:var(--muted); text-align:center; padding:10px 16px 22px; }
+  .hist-day { font-size:13px; color:var(--muted); margin:14px 2px 6px; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="topbar">
+    <h1>💊 吃药提醒</h1>
+    <nav class="tabs">
+      <a class="tab" href="#today" data-tab="today">今日</a>
+      <a class="tab" href="#meds" data-tab="meds">药品</a>
+      <a class="tab" href="#schedule" data-tab="schedule">提醒设置</a>
+      <a class="tab" href="#history" data-tab="history">历史</a>
+    </nav>
+  </div>
+
+  <main>
+    <!-- 页面1：今日（对应 到点提醒 + 打卡） -->
+    <section class="view" id="view-today">
+      <div class="banner" id="permBanner">
+        <span>⚠️ 通知权限未开启，到点提醒可能无法弹出</span>
+        <button class="btn ghost sm" onclick="grantPerm()">开启通知</button>
+      </div>
+      <div class="section-title"><span>今天的服药安排</span><span id="todayDate"></span></div>
+      <div id="todayList"></div>
+      <div class="card" style="background:var(--blue-soft);border-color:#cddcff;">
+        <div style="font-size:13px;color:var(--blue);">原型演示：点「模拟到点」可查看系统通知弹出效果（真实产品中由浏览器 Notification 自动触发）。</div>
+      </div>
+    </section>
+
+    <!-- 页面2：药品（FR-01） -->
+    <section class="view" id="view-meds">
+      <div class="section-title"><span>我的药品</span><button class="btn primary sm" onclick="openMedSheet()">＋ 添加药品</button></div>
+      <div id="medList"></div>
+      <div class="empty" id="medEmpty" style="display:none">还没有药品，点右上角添加</div>
+    </section>
+
+    <!-- 页面3：提醒设置（FR-02） -->
+    <section class="view" id="view-schedule">
+      <div class="section-title"><span>服药时间点（每天重复）</span><button class="btn primary sm" onclick="openSchedSheet()">＋ 添加提醒</button></div>
+      <div id="schedList"></div>
+      <div class="empty" id="schedEmpty" style="display:none">还没有时间点，点右上角添加</div>
+    </section>
+
+    <!-- 页面4：历史（FR-05 + 补记） -->
+    <section class="view" id="view-history">
+      <div class="section-title"><span>用药历史</span><span style="font-size:12px;">点状态可补记 / 修改</span></div>
+      <div id="histList"></div>
+    </section>
+  </main>
+
+  <div class="proto-note">交互原型 · 纯前端假数据 · 刷新后重置</div>
+</div>
+
+<!-- 模拟系统通知 -->
+<div class="notif" id="notif">
+  <button class="close" onclick="hideNotif()">×</button>
+  <div class="app"><span class="ico">药</span>吃药提醒</div>
+  <b id="notifTitle"></b>
+  <p id="notifBody"></p>
+</div>
+
+<!-- 添加药品弹层 -->
+<div class="overlay" id="medOverlay">
+  <div class="sheet">
+    <h3>添加药品</h3>
+    <div class="field"><label>名称（必填）</label><input type="text" id="medName" placeholder="如：阿莫西林"></div>
+    <div class="field"><label>备注（可选）</label><input type="text" id="medNote" placeholder="如：饭后服用"></div>
+    <div class="foot"><button class="btn ghost" onclick="closeOverlay('medOverlay')">取消</button><button class="btn primary" onclick="addMed()">保存</button></div>
+  </div>
+</div>
+
+<!-- 添加时间点弹层 -->
+<div class="overlay" id="schedOverlay">
+  <div class="sheet">
+    <h3>添加服药时间点</h3>
+    <div class="field"><label>时间</label><input type="time" id="schedTime" value="08:00"></div>
+    <div class="field"><label>选择药品（至少 1 种）</label><div class="chips" id="schedMeds"></div></div>
+    <div class="field"><label>重复</label><div class="chips"><span class="chip on">每天</span></div></div>
+    <div class="foot"><button class="btn ghost" onclick="closeOverlay('schedOverlay')">取消</button><button class="btn primary" onclick="addSched()">保存</button></div>
+  </div>
+</div>
+
+<script>
+// ===== 假数据 =====
+let meds = [
+  { id: 1, name: "阿莫西林", note: "饭后服用" },
+  { id: 2, name: "维生素D", note: "" },
+  { id: 3, name: "降压药", note: "晨起空腹" },
+];
+let schedules = [
+  { id: 1, time: "08:00", medIds: [1, 2] },
+  { id: 2, time: "12:30", medIds: [3] },
+  { id: 3, time: "20:00", medIds: [1] },
+];
+// 记录：key = 日期 + 时间点id，status: done/miss/none
+const today = new Date().toISOString().slice(0, 10);
+const yest = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+const d2 = new Date(Date.now() - 2 * 864e5).toISOString().slice(0, 10);
+let records = {
+  [`${yest}|1`]: "done", [`${yest}|2`]: "done", [`${yest}|3`]: "miss",
+  [`${d2}|1`]: "done", [`${d2}|2`]: "miss", [`${d2}|3`]: "done",
+};
+let notifGranted = false;
+let nextMedId = 4, nextSchedId = 4, pickedMeds = new Set();
+let editMedId = null, editSchedId = null;
+const deletedMeds = {}; // 已删除药品的名称快照：id -> name
+const deletedScheds = {}; // 已删除时间点的快照：id -> { time, meds }（历史保留展示，见 PRD 5.4）
+
+const isMedDeleted = id => !meds.some(m => m.id === id);
+const medName = id => { const m = meds.find(x => x.id === id); return m ? m.name : (deletedMeds[id] || "（已删除）"); };
+const medPill = id => isMedDeleted(id)
+  ? `<span class="pill" style="background:var(--gray-soft);color:var(--muted);text-decoration:line-through">${medName(id)}（已删除）</span>`
+  : `<span class="pill">${medName(id)}</span>`;
+const badge = s => s === "done" ? '<span class="badge done">已吃</span>'
+  : s === "miss" ? '<span class="badge miss">未吃</span>'
+  : '<span class="badge none">未标记</span>';
+
+// ===== 路由 =====
+function show(tab) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + tab).classList.add("active");
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === tab));
+  renderAll();
+}
+window.addEventListener("hashchange", () => show(location.hash.slice(1) || "today"));
+
+// ===== 渲染 =====
+function renderAll() {
+  document.getElementById("todayDate").textContent = today;
+  document.getElementById("permBanner").style.display = notifGranted ? "none" : "flex";
+
+  document.getElementById("todayList").innerHTML = schedules.map(s => {
+    const st = records[`${today}|${s.id}`] || "none";
+    return `<div class="card">
+      <div class="row"><div><div class="time">${s.time}</div>
+      <div class="meds">${s.medIds.map(medPill).join("")}</div></div>
+      <div>${badge(st)}</div></div>
+      <div class="actions">
+        <button class="btn primary sm" onclick="simulate(${s.id})">🔔 模拟到点</button>
+        <button class="btn ghost sm" onclick="mark('${today}',${s.id},'done')">标记已吃</button>
+        <button class="btn ghost sm" onclick="mark('${today}',${s.id},'miss')">标记未吃</button>
+      </div></div>`;
+  }).join("") || '<div class="empty">暂无时间点</div>';
+
+  document.getElementById("medList").innerHTML = meds.map(m =>
+    `<div class="card"><div class="row"><div><b>${m.name}</b>${m.note ? `<div class="meds">${m.note}</div>` : ""}</div>
+    <div class="actions" style="margin:0"><button class="btn ghost sm" onclick="openMedSheet(${m.id})">编辑</button><button class="btn danger-text" onclick="delMed(${m.id})">删除</button></div></div></div>`).join("");
+  document.getElementById("medEmpty").style.display = meds.length ? "none" : "block";
+
+  document.getElementById("schedList").innerHTML = schedules.map(s =>
+    `<div class="card"><div class="row"><div><div class="time">${s.time}</div>
+    <div class="meds">${s.medIds.map(medPill).join("")} <span class="pill" style="background:var(--gray-soft);color:var(--muted)">每天</span></div></div>
+    <div class="actions" style="margin:0"><button class="btn ghost sm" onclick="openSchedSheet(${s.id})">编辑</button><button class="btn danger-text" onclick="delSched(${s.id})">删除</button></div></div></div>`).join("");
+  document.getElementById("schedEmpty").style.display = schedules.length ? "none" : "block";
+
+  const days = [today, yest, d2];
+  // 历史 = 现存时间点 + 已删除时间点快照，按时间排序
+  const histScheds = [
+    ...schedules.map(s => ({ id: s.id, time: s.time, meds: s.medIds.map(medName).join(" · "), deleted: false })),
+    ...Object.entries(deletedScheds).map(([id, snap]) => ({ id: +id, time: snap.time, meds: snap.meds.join(" · "), deleted: true })),
+  ].sort((a, b) => a.time.localeCompare(b.time));
+  document.getElementById("histList").innerHTML = days.map(d =>
+    `<div class="hist-day">${d}${d === today ? "（今天）" : ""}</div>` +
+    histScheds.map(s => {
+      const st = records[`${d}|${s.id}`] || "none";
+      if (s.deleted && st === "none") return ""; // 已删时间点不生成未标记行
+      const next = st === "done" ? "miss" : "done"; // 补记：在已吃/未吃间切换
+      return `<div class="card"><div class="row"><div><b style="font-variant-numeric:tabular-nums">${s.time}</b>${s.deleted ? ' <span class="pill" style="background:var(--gray-soft);color:var(--muted)">时间点已删除</span>' : ""}
+      <div class="meds">${s.meds}</div></div>
+      <button class="btn ghost sm" onclick="mark('${d}',${s.id},'${next}')">${badge(st)} 补记</button></div></div>`;
+    }).join("")
+  ).join("");
+}
+
+// ===== 交互 =====
+function mark(date, sid, status) { records[`${date}|${sid}`] = status; renderAll(); }
+function grantPerm() { notifGranted = true; renderAll(); }
+function delMed(id) { const m = meds.find(x => x.id === id); if (!m) return; deletedMeds[id] = m.name; meds = meds.filter(x => x.id !== id); renderAll(); } // 时间点保留引用，展示名称快照并标记已删除
+function delSched(id) { const s = schedules.find(x => x.id === id); if (s) deletedScheds[id] = { time: s.time, meds: s.medIds.map(medName) }; schedules = schedules.filter(x => x.id !== id); renderAll(); } // 冻结时间点快照，历史继续展示
+
+function simulate(sid) {
+  const s = schedules.find(x => x.id === sid);
+  document.getElementById("notifTitle").textContent = `该吃药了 · ${s.time}`;
+  document.getElementById("notifBody").textContent = s.medIds.map(medName).join("、");
+  document.getElementById("notif").classList.add("show");
+  setTimeout(hideNotif, 4000);
+}
+function hideNotif() { document.getElementById("notif").classList.remove("show"); }
+
+function openMedSheet(id) {
+  editMedId = id || null;
+  const m = id ? meds.find(x => x.id === id) : null;
+  document.getElementById("medName").value = m ? m.name : "";
+  document.getElementById("medNote").value = m ? m.note : "";
+  document.getElementById("medName").style.borderColor = "";
+  document.querySelector("#medOverlay h3").textContent = m ? "编辑药品" : "添加药品";
+  document.getElementById("medOverlay").classList.add("show");
+}
+function addMed() {
+  const name = document.getElementById("medName").value.trim();
+  if (!name) { document.getElementById("medName").style.borderColor = "var(--red)"; return; }
+  const note = document.getElementById("medNote").value.trim();
+  if (editMedId) { const m = meds.find(x => x.id === editMedId); m.name = name; m.note = note; }
+  else meds.push({ id: nextMedId++, name, note });
+  document.getElementById("medName").value = ""; document.getElementById("medNote").value = "";
+  closeOverlay("medOverlay"); renderAll();
+}
+function openSchedSheet(id) {
+  editSchedId = id || null;
+  const s = id ? schedules.find(x => x.id === id) : null;
+  pickedMeds = new Set(s ? s.medIds.filter(x => !isMedDeleted(x)) : []);
+  document.getElementById("schedTime").value = s ? s.time : "08:00";
+  document.querySelector("#schedOverlay h3").textContent = s ? "编辑时间点" : "添加服药时间点";
+  document.getElementById("schedMeds").innerHTML = meds.map(m =>
+    `<span class="chip ${pickedMeds.has(m.id) ? "on" : ""}" data-id="${m.id}" onclick="toggleChip(this)">${m.name}</span>`).join("") || '<span class="meds">请先在「药品」页添加</span>';
+  document.getElementById("schedOverlay").classList.add("show");
+}
+function toggleChip(el) {
+  const id = +el.dataset.id;
+  pickedMeds.has(id) ? pickedMeds.delete(id) : pickedMeds.add(id);
+  el.classList.toggle("on");
+}
+function addSched() {
+  if (!pickedMeds.size) { document.getElementById("schedMeds").outline = "2px solid var(--red)"; return; }
+  const time = document.getElementById("schedTime").value || "08:00";
+  if (editSchedId) {
+    const s = schedules.find(x => x.id === editSchedId);
+    s.medIds = [...s.medIds.filter(isMedDeleted), ...pickedMeds]; // 保留已删除药的引用（名称快照）
+    s.time = time;
+  } else schedules.push({ id: nextSchedId++, time, medIds: [...pickedMeds] });
+  schedules.sort((a, b) => a.time.localeCompare(b.time));
+  closeOverlay("schedOverlay"); renderAll();
+}
+function closeOverlay(id) { document.getElementById(id).classList.remove("show"); document.getElementById("schedMeds").outline = ""; }
+
+show(location.hash.slice(1) || "today");
+</script>
+</body>
+</html>
